@@ -1,35 +1,22 @@
-// Draws the cover: the photo filling the square, a sunset tint rising from the bottom, and the caption in bold
-// white capitals along the foot.
-
-/** Draws `photo` (an image, or null) and `caption` onto the canvas's 2D context, at the canvas's own size. */
-export function drawCover(canvas, photo, caption) {
-  const ctx = canvas.getContext('2d');
-  const { width: w, height: h } = canvas;
-  ctx.fillStyle = '#2b1838';
-  ctx.fillRect(0, 0, w, h);
-  if (photo) {
-    const scale = Math.max(w / photo.naturalWidth, h / photo.naturalHeight);
-    const pw = photo.naturalWidth * scale;
-    const ph = photo.naturalHeight * scale;
-    ctx.drawImage(photo, (w - pw) / 2, (h - ph) / 2, pw, ph);
-  }
-  const tint = ctx.createLinearGradient(0, h * 0.35, 0, h);
-  tint.addColorStop(0, 'rgba(255, 120, 80, 0)');
-  tint.addColorStop(1, 'rgba(200, 40, 120, 0.65)');
-  ctx.fillStyle = tint;
-  ctx.fillRect(0, 0, w, h);
-  const text = caption.trim().toUpperCase();
-  if (!text) return;
-  let size = h * 0.12;
-  ctx.font = `bold ${size}px sans-serif`;
-  while (ctx.measureText(text).width > w * 0.9 && size > 12) {
-    size -= 2;
-    ctx.font = `bold ${size}px sans-serif`;
-  }
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-  ctx.shadowBlur = size * 0.2;
-  ctx.fillText(text, w / 2, h - h * 0.07);
-  ctx.shadowBlur = 0;
-}
+export const exportSizes={wide:[1920,1080],portrait:[1080,1350],square:[1080,1080]};
+export const layoutNames=['Hero','Poster','Triptych','Quad','Strip','Duo'];
+export const filmGrades={
+  Sunset:['#e87988','#ffbd62','saturate(1.55) contrast(1.16) sepia(.15)','#f88668','#54265e'],
+  Electric:['#8c6bf0','#51e1ed','saturate(1.65) contrast(1.25) hue-rotate(15deg)','#ae67f9','#125e8d'],
+  Gold:['#d0a14b','#fff1af','saturate(.85) contrast(1.22) sepia(.55)','#ecc269','#604831'],
+  Vice:['#fa67b7','#40e0df','saturate(1.65) contrast(1.17) hue-rotate(-12deg)','#ef61ba','#188797'],
+  Noir:['#333a45','#d6d9dc','grayscale(1) contrast(1.5)','#c3cbd3','#151923'],
+  Heat:['#b93d31','#ff9d41','saturate(1.7) contrast(1.3) sepia(.35)','#ff642c','#772424']};
+const rectangle=(x,y,w,h)=>[[x,y],[x+w,y],[x+w,y+h],[x,y+h]];
+export function coverPanels(layout){switch(layout){case'Hero':return [[[0,0],[.62,0],[.53,1],[0,1]],[[.62,0],[1,0],[1,.49],[.575,.49]],[[.575,.49],[1,.49],[1,1],[.53,1]]];case'Poster':return [[[0,0],[.61,0],[.55,.59],[0,.49]],[[.61,0],[1,0],[1,.51],[.55,.59]],[[0,.49],[.55,.59],[.49,1],[0,1]],[[.55,.59],[1,.51],[1,1],[.49,1]]];case'Triptych':return [[[0,0],[.38,0],[.31,1],[0,1]],[[.38,0],[.72,0],[.64,1],[.31,1]],[[.72,0],[1,0],[1,1],[.64,1]]];case'Quad':return [rectangle(0,0,.5,.5),rectangle(.5,0,.5,.5),rectangle(0,.5,.5,.5),rectangle(.5,.5,.5,.5)];case'Strip':return [rectangle(0,0,1,.24),rectangle(0,.24,1,.52),rectangle(0,.76,1,.24)];default:return [[[0,0],[.56,0],[.44,1],[0,1]],[[.56,0],[1,0],[1,1],[.44,1]]];}}
+export function panelBounds(points,w,h){const xs=points.map(p=>p[0]*w),ys=points.map(p=>p[1]*h);return{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)};}
+export function panelAtPoint(panels,x,y){for(let i=0;i<panels.length;i++){const points=panels[i];let inside=false;for(let a=0,b=points.length-1;a<points.length;b=a++){const [ax,ay]=points[a],[bx,by]=points[b];if((ay>y)!==(by>y)&&x<(bx-ax)*(y-ay)/(by-ay)+ax)inside=!inside;}if(inside)return i;}return -1;}
+function tracePanel(ctx,points,w,h){ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x*w,y*h):ctx.moveTo(x*w,y*h));ctx.closePath();}
+export function cropGeometry(image,bounds,crop){const scale=Math.max(bounds.w/image.width,bounds.h/image.height)*crop.zoom;const width=image.width*scale,height=image.height*scale;return{x:bounds.x-(width-bounds.w)*crop.x,y:bounds.y-(height-bounds.h)*crop.y,w:width,h:height};}
+const inkCache=new WeakMap();
+function illustratedPhoto(image){if(inkCache.has(image))return inkCache.get(image);const plate=document.createElement('canvas'),scale=Math.min(1,1500/Math.max(image.width,image.height));plate.width=Math.round(image.width*scale);plate.height=Math.round(image.height*scale);const c=plate.getContext('2d',{willReadFrequently:true});c.drawImage(image,0,0,plate.width,plate.height);const pixels=c.getImageData(0,0,plate.width,plate.height),source=new Uint8ClampedArray(pixels.data),w=plate.width;for(let y=1;y<plate.height-1;y++)for(let x=1;x<w-1;x++){const i=(y*w+x)*4,lum=j=>source[j]*.299+source[j+1]*.587+source[j+2]*.114,edge=Math.abs(lum(i-4)-lum(i+4))+Math.abs(lum(i-w*4)-lum(i+w*4)),ink=edge>55?.77:1;for(let k=0;k<3;k++)pixels.data[i+k]=(source[i+k]*.76+Math.round(source[i+k]/22)*22*.24)*ink;}c.putImageData(pixels,0,0);inkCache.set(image,plate);return plate;}
+function drawPhotoPanel(ctx,photo,points,state,w,h){const bounds=panelBounds(points,w,h),geo=cropGeometry(photo.image,bounds,photo),grade=filmGrades[state.grade],amount=state.intensity/100;ctx.save();tracePanel(ctx,points,w,h);ctx.clip();ctx.drawImage(photo.image,geo.x,geo.y,geo.w,geo.h);ctx.globalAlpha=amount;ctx.filter=grade[2];ctx.drawImage(illustratedPhoto(photo.image),geo.x,geo.y,geo.w,geo.h);ctx.filter='none';ctx.globalAlpha=amount*.19;ctx.globalCompositeOperation='soft-light';const tint=ctx.createLinearGradient(0,bounds.y,0,bounds.y+bounds.h);tint.addColorStop(0,grade[3]);tint.addColorStop(1,grade[4]);ctx.fillStyle=tint;ctx.fillRect(bounds.x,bounds.y,bounds.w,bounds.h);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;const shade=ctx.createLinearGradient(0,bounds.y,0,bounds.y+bounds.h);shade.addColorStop(0,'#08071918');shade.addColorStop(.45,'transparent');shade.addColorStop(1,'#08071965');ctx.fillStyle=shade;ctx.fillRect(bounds.x,bounds.y,bounds.w,bounds.h);ctx.restore();}
+function spacedText(ctx,text,x,y,spacing,stroke=false){let offset=0;for(const letter of text){if(stroke)ctx.strokeText(letter,x+offset,y);else ctx.fillText(letter,x+offset,y);offset+=ctx.measureText(letter).width+spacing;}}
+function lineWidth(ctx,text,spacing){return ctx.measureText(text).width+Math.max(0,text.length-1)*spacing;}
+function drawCaptionLettering(ctx,state,w,h){const wide=w/h>1.5,unit=w/1080,lines=(state.uppercase?state.caption.toUpperCase():state.caption).split('\n').filter(Boolean).slice(0,3);if(!lines.length)return;const targetWidth=w*(wide?.67:.87),maxHeight=h*(wide?.48:.36);let fontSize=Math.min(w*(wide?.112:.19),maxHeight/lines.length/1.02),spacing=state.tracking*unit;ctx.font=`${fontSize}px "${state.font}", Impact, sans-serif`;const widest=Math.max(...lines.map(line=>lineWidth(ctx,line,spacing)));if(widest>targetWidth)fontSize*=targetWidth/widest;ctx.font=`${fontSize}px "${state.font}", Impact, sans-serif`;ctx.textBaseline='alphabetic';ctx.lineJoin='round';const x=w*.045,lastY=h*.875,step=fontSize*1.04,firstY=lastY-(lines.length-1)*step,fill=ctx.createLinearGradient(0,firstY-fontSize,0,lastY);fill.addColorStop(0,'#fffce7');fill.addColorStop(.45,'#fff4d3');fill.addColorStop(1,state.grade==='Noir'?'#d8d9de':filmGrades[state.grade][0]);lines.forEach((line,i)=>{const y=firstY+i*step;if(state.shadow){ctx.save();ctx.fillStyle='#080d1b';spacedText(ctx,line,x+fontSize*.045,y+fontSize*.055,spacing);ctx.restore();}ctx.strokeStyle='#111622';ctx.lineWidth=state.outline*unit*1.5;if(state.outline>0)spacedText(ctx,line,x,y,spacing,true);ctx.fillStyle=state.gradient?fill:'#fff6e0';spacedText(ctx,line,x,y,spacing);if(state.outline>0){ctx.save();ctx.strokeStyle='#fff8dc60';ctx.lineWidth=unit*.65;spacedText(ctx,line,x,y,spacing,true);ctx.restore();}});ctx.font=`${Math.round(w*(wide?.012:.019))}px "Afterhours Grotesk", sans-serif`;ctx.fillStyle='#fff3db';ctx.shadowColor='#000';ctx.shadowBlur=5*unit;ctx.fillText(state.subtitle,w*.05,h*.929,w*.83);ctx.shadowBlur=0;}
+export function renderCover(canvas,state){const[w,h]=exportSizes[state.size];canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.fillStyle='#0e1520';ctx.fillRect(0,0,w,h);const panels=coverPanels(state.layout),unit=w/1080;panels.forEach((points,i)=>drawPhotoPanel(ctx,state.photos[i],points,state,w,h));ctx.lineJoin='miter';ctx.strokeStyle='#111621';ctx.lineWidth=13*unit;panels.forEach(points=>{tracePanel(ctx,points,w,h);ctx.stroke();});ctx.strokeStyle='#fff0cb';ctx.lineWidth=2*unit;panels.forEach(points=>{tracePanel(ctx,points,w,h);ctx.stroke();});if(state.vignette){const v=ctx.createRadialGradient(w*.48,h*.38,w*.12,w*.5,h*.5,w*.75);v.addColorStop(0,'transparent');v.addColorStop(1,'#0a0a245e');ctx.fillStyle=v;ctx.fillRect(0,0,w,h);}const dark=ctx.createLinearGradient(0,h*.48,0,h);dark.addColorStop(0,'transparent');dark.addColorStop(1,'#0c1025c9');ctx.fillStyle=dark;ctx.fillRect(0,0,w,h);ctx.save();ctx.fillStyle='#fff4d8';ctx.font=`${12*unit}px "Afterhours Grotesk", sans-serif`;ctx.letterSpacing=`${2*unit}px`;ctx.fillText('AFTERHOURS   /   A COVER BY YOU',w*.045,h*.061);ctx.textAlign='right';ctx.font=`${10*unit}px "Afterhours Grotesk", sans-serif`;ctx.fillText('SOUTH COAST  •  26° N',w*.953,h*.061);ctx.restore();drawCaptionLettering(ctx,state,w,h);const badge=w*.053,bx=w*.922,by=h*.865;ctx.save();ctx.translate(bx,by);ctx.rotate(-.1);ctx.strokeStyle='#fff2db';ctx.lineWidth=1.8*unit;ctx.strokeRect(-badge/2,-badge/2,badge,badge);ctx.textAlign='center';ctx.fillStyle='#fff2db';ctx.font=`${badge*.58}px 'Afterhours Condensed',sans-serif`;ctx.fillText('86',0,badge*.19);ctx.restore();ctx.fillStyle='#eee3cf';ctx.font=`${8*unit}px "Afterhours Grotesk", sans-serif`;ctx.fillText('GOOD TIMES. BAD DECISIONS.',w*.046,h*.973);ctx.textAlign='right';ctx.fillText('AN ORIGINAL COVER STORY   /   VOL. 02',w*.954,h*.973);ctx.textAlign='left';if(state.frame!=='none'){ctx.strokeStyle='#fff1d3';ctx.lineWidth=(state.frame==='thick'?18:5)*unit;ctx.strokeRect(ctx.lineWidth/2,ctx.lineWidth/2,w-ctx.lineWidth,h-ctx.lineWidth);}return canvas;}

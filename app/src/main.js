@@ -1,51 +1,19 @@
-// Wires the page: pick a photo, type a caption, export the square cover as a PNG. A `?shot=` query sets up a fixed
-// scene for a screenshot instead (./shots.js).
-import { drawCover } from './cover.js';
-import { runShot } from './shots.js';
-
-const canvas = document.getElementById('cover');
-const caption = document.getElementById('caption');
-const status = document.getElementById('status');
-let photo = null;
-
-function redraw() {
-  drawCover(canvas, photo, caption.value);
-}
-
-/** Loads an image from a URL, resolving to the image once it can be drawn. */
-export function loadImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-document.getElementById('photo').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  photo = await loadImage(URL.createObjectURL(file));
-  redraw();
-});
-caption.addEventListener('input', redraw);
-document.getElementById('export').addEventListener('click', () => {
-  canvas.toBlob((blob) => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'cover-1080x1080.png';
-    a.click();
-    status.textContent = 'Saved cover-1080x1080.png';
-  }, 'image/png');
-});
-
-const shot = new URLSearchParams(location.search).get('shot');
-if (shot) {
-  runShot(shot, new URLSearchParams(location.search), async (sample, text) => {
-    photo = await loadImage(sample);
-    caption.value = text;
-    redraw();
-  });
-} else {
-  redraw();
-}
+import {renderCover,coverPanels,panelAtPoint,panelBounds,cropGeometry,exportSizes,layoutNames,filmGrades} from './cover.js';
+const $=id=>document.getElementById(id);
+export const state={layout:'Hero',grade:'Sunset',size:'wide',intensity:72,caption:'SUNSET\nHEIST',subtitle:'NO RULES. JUST THE OPEN ROAD.',font:'Afterhours Condensed',outline:8,tracking:1,uppercase:true,gradient:true,shadow:true,vignette:true,frame:'thin',photos:[],selected:0};
+const templates=[{name:'Sunset Heist',note:'Warm / cinematic',layout:'Hero',grade:'Sunset',caption:'SUNSET\nHEIST',subtitle:'NO RULES. JUST THE OPEN ROAD.',font:'Afterhours Condensed',outline:8,tracking:1},{name:'Neon Nights',note:'Loud / electric',layout:'Triptych',grade:'Electric',caption:'NEON\nNIGHTS',subtitle:'THE CITY NEVER SAW US COMING.',font:'Afterhours Condensed',outline:10,tracking:3},{name:'Vice Drive',note:'Pink / cyan',layout:'Poster',grade:'Vice',caption:'VICE\nDRIVE',subtitle:'CHASE THE LIGHT. OWN THE NIGHT.',font:'Afterhours Grotesk',outline:7,tracking:-2},{name:'Beach Noir',note:'Mono / dramatic',layout:'Strip',grade:'Noir',caption:'COAST\nTO COAST',subtitle:'EVERY SUMMER HAS A DARK SIDE.',font:'Afterhours Condensed',outline:5,tracking:2}];
+function notify(message){$('toast').textContent=message;$('toast').classList.add('visible');clearTimeout(notify.timer);notify.timer=setTimeout(()=>$('toast').classList.remove('visible'),2500);}
+export function loadPhoto(src){return new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('This image could not be opened. Try a JPG, PNG or WebP.'));image.src=src;});}
+function photo(image,src,position={}){return{image,src,zoom:1,x:.5,y:image.height>image.width?.25:.5,...position};}
+function activeButtons(container,attribute,value){document.querySelectorAll(`#${container} [${attribute}]`).forEach(b=>b.classList.toggle('active',b.getAttribute(attribute)===value));}
+function refreshPhotoSlots(){ $('photoSlots').replaceChildren();coverPanels(state.layout).forEach((_,i)=>{const b=document.createElement('button');b.className='photo-slot'+(i===state.selected?' active':'');b.style.backgroundImage=`url("${state.photos[i].src}")`;b.title=`Select panel ${i+1}. Double-click to replace photo.`;b.setAttribute('aria-label',b.title);b.innerHTML=`<span>0${i+1}</span><em>+ replace</em>`;b.onclick=()=>{state.selected=i;syncCrop();refreshPhotoSlots();};b.ondblclick=()=>$('photoUpload').click();b.querySelector('em').onclick=e=>{e.stopPropagation();state.selected=i;$('photoUpload').click();};$('photoSlots').append(b);});$('panelCount').textContent=`${coverPanels(state.layout).length} PANELS`;syncCrop();}
+function syncCrop(){const p=state.photos[state.selected];if(!p)return;$('cropLabel').textContent=`Panel ${state.selected+1} · crop & position`;$('zoom').value=p.zoom;$('zoomValue').textContent=`${p.zoom.toFixed(2)}×`;}
+export function paint(){renderCover($('cover'),state);$('dimensions').textContent=exportSizes[state.size].join(' × ');window.__shotReady=true;document.body.dataset.ready='true';}
+function syncControls(){for(const id of ['caption','subtitle','font','frame','outline','tracking','intensity'])$(id).value=state[id];for(const id of ['uppercase','gradient','shadow','vignette'])$(id).checked=state[id];for(const id of ['outline','tracking','intensity'])$(id+'Value').textContent=state[id]+(id==='intensity'?'%':'');activeButtons('layouts','data-layout',state.layout);activeButtons('grades','data-grade',state.grade);activeButtons('sizes','data-size',state.size);refreshPhotoSlots();}
+export function applyPreset(index){const preset=templates[index];Object.assign(state,preset,{gradient:true,shadow:true,vignette:true,uppercase:true,intensity:76});state.selected=0;syncControls();$('previewName').innerHTML=`${preset.name} <span>— Live preview</span>`;activeButtons('presets','data-preset',String(index));paint();}
+function buildPickers(){templates.forEach((preset,i)=>{const b=document.createElement('button'),colors=filmGrades[preset.grade];b.className='preset';b.dataset.preset=i;b.style.setProperty('--a',colors[0]+'88');b.style.setProperty('--b',colors[1]+'33');b.innerHTML=`<strong>${preset.name}</strong><small>${preset.note}</small>`;b.onclick=()=>applyPreset(i);$('presets').append(b);});layoutNames.forEach(name=>{const b=document.createElement('button');b.className='layout-button';b.dataset.layout=name;b.innerHTML=`<span class="layout-icon ${name}"></span>${name}`;b.onclick=()=>{state.layout=name;state.selected=0;syncControls();paint();};$('layouts').append(b);});Object.entries(filmGrades).forEach(([name,colors])=>{const b=document.createElement('button');b.className='grade-button';b.dataset.grade=name;b.style.setProperty('--a',colors[0]);b.style.setProperty('--b',colors[1]);b.innerHTML=`<span class="grade-swatch"></span>${name}`;b.onclick=()=>{state.grade=name;syncControls();paint();};$('grades').append(b);});}
+export async function replacePhotos(files){const images=Array.from(files).filter(f=>f.type.startsWith('image/'));if(!images.length)return notify('Choose an image file.');try{for(let n=0;n<Math.min(images.length,4);n++){const src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(images[n]);});const loaded=await loadPhoto(src);state.photos[(state.selected+n)%coverPanels(state.layout).length]=photo(loaded,src);}refreshPhotoSlots();paint();notify(images.length>1?'Photos added across your panels.':'Photo added. Drag the cover to reframe.');}catch(error){notify(error.message);}}
+export async function exportPng(size=state.size){await document.fonts.ready;const canvas=document.createElement('canvas');renderCover(canvas,{...state,size});const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw new Error('Could not export cover.');const link=document.createElement('a'),url=URL.createObjectURL(blob);link.href=url;link.download=`${state.caption.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'afterhours'}-${exportSizes[size].join('x')}.png`;link.click();setTimeout(()=>URL.revokeObjectURL(url),3000);notify(`${exportSizes[size].join(' × ')} PNG exported. Go make trouble.`);return blob;}
+function wireControls(){for(const id of ['caption','subtitle','font','frame','outline','tracking','intensity','uppercase','gradient','shadow','vignette'])$(id).addEventListener('input',()=>{const el=$(id);state[id]=el.type==='checkbox'?el.checked:el.type==='range'?Number(el.value):el.value;if($(id+'Value'))$(id+'Value').textContent=state[id]+(id==='intensity'?'%':'');paint();});$('zoom').oninput=()=>{state.photos[state.selected].zoom=Number($('zoom').value);syncCrop();paint();};document.querySelectorAll('[data-position]').forEach(b=>b.onclick=()=>{const positions={center:[.5,.5],face:[.5,.23],left:[0,.4],right:[1,.4]},[x,y]=positions[b.dataset.position];Object.assign(state.photos[state.selected],{x,y});activeButtons('cropPositions','data-position',b.dataset.position);paint();});document.querySelectorAll('[data-size]').forEach(b=>b.onclick=()=>{state.size=b.dataset.size;syncControls();paint();});$('photoUpload').onchange=async e=>{await replacePhotos(e.target.files);e.target.value='';};$('fillAll').onclick=()=>{const selected=state.photos[state.selected];state.photos=state.photos.map(()=>({...selected}));refreshPhotoSlots();paint();notify('One photo. Every panel. Make each crop your own.');};for(const id of ['download','downloadTop'])$(id).onclick=()=>exportPng().catch(e=>notify(e.message));const canvas=$('cover');let drag=null;canvas.onpointerdown=e=>{const rect=canvas.getBoundingClientRect(),px=(e.clientX-rect.left)/rect.width,py=(e.clientY-rect.top)/rect.height,panels=coverPanels(state.layout),hit=panelAtPoint(panels,px,py);if(hit<0)return;state.selected=hit;const p=state.photos[state.selected],bounds=panelBounds(panels[state.selected],canvas.width,canvas.height),geo=cropGeometry(p.image,bounds,p);drag={clientX:e.clientX,clientY:e.clientY,x:p.x,y:p.y,dx:geo.w-bounds.w,dy:geo.h-bounds.h,scale:canvas.width/rect.width};canvas.setPointerCapture(e.pointerId);refreshPhotoSlots();};canvas.onpointermove=e=>{if(!drag)return;const p=state.photos[state.selected];if(drag.dx>0)p.x=Math.max(0,Math.min(1,drag.x-(e.clientX-drag.clientX)*drag.scale/drag.dx));if(drag.dy>0)p.y=Math.max(0,Math.min(1,drag.y-(e.clientY-drag.clientY)*drag.scale/drag.dy));paint();};canvas.onpointerup=canvas.onpointercancel=()=>{drag=null;};canvas.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();const p=state.photos[state.selected];p.x=Math.max(0,Math.min(1,p.x+(e.key==='ArrowLeft'?.04:e.key==='ArrowRight'?-.04:0)));p.y=Math.max(0,Math.min(1,p.y+(e.key==='ArrowUp'?.04:e.key==='ArrowDown'?-.04:0)));paint();});canvas.ondragover=e=>e.preventDefault();canvas.ondrop=e=>{e.preventDefault();replacePhotos(e.dataTransfer.files);};}
+async function startStudio(){const[boulevard,pier]=await Promise.all([loadPhoto('samples/boulevard.jpg'),loadPhoto('samples/pier.jpg'),document.fonts.load('40px "Afterhours Condensed"'),document.fonts.load('20px "Afterhours Grotesk"')]);state.photos=[photo(boulevard,'samples/boulevard.jpg'),photo(boulevard,'samples/boulevard.jpg',{zoom:1.95,x:0,y:0}),photo(boulevard,'samples/boulevard.jpg',{zoom:1.7,x:0,y:1}),photo(pier,'samples/pier.jpg')];buildPickers();wireControls();syncControls();paint();window.studio={state,paint,applyPreset,exportPng,replacePhotos,samples:{boulevard,pier}};const params=new URLSearchParams(location.search);if(params.has('cover')){document.body.classList.add('cover-only');if(params.get('preset'))applyPreset(Number(params.get('preset')));if(params.get('size'))state.size=params.get('size');paint();}}
+startStudio().catch(error=>{document.title='JSERROR: '+error.message;$('toast').textContent=error.message;$('toast').classList.add('visible');});

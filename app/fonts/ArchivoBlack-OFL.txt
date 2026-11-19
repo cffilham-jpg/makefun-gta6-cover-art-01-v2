@@ -1,0 +1,7 @@
+Copyright 2010-2020 Google LLC (https://github.com/notofonts)
+
+This font software is licensed under the SIL Open Font License, Version 1.1.
+The license is available with a FAQ at: https://scripts.sil.org/OFL
+
+The bundled Noto Sans Display Black face is the bold grotesque display face
+used by this offline editor.

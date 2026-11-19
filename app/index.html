@@ -1,23 +1,31 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cover Snap</title>
-<link rel="stylesheet" href="./style.css">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#121416">
+  <title>Afterhours — Make your own cover story</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css">
+  <script>window.onerror = function(message) { document.title = 'JSERROR: ' + message; };</script>
 </head>
 <body>
-<main class="app">
-  <section class="controls">
-    <h1>Cover Snap</h1>
-    <p>A photo and a caption, made into a square cover.</p>
-    <label>Photo <input id="photo" type="file" accept="image/*"></label>
-    <label>Caption <input id="caption" type="text" maxlength="40" value="Sunset Heist"></label>
-    <button id="export" type="button">Export PNG 1080 x 1080</button>
-    <p id="status" role="status"></p>
-  </section>
-  <canvas id="cover" width="1080" height="1080" aria-label="The cover"></canvas>
-</main>
-<script type="module" src="./src/main.js"></script>
-</body>
-</html>
+  <header class="topbar"><a class="brand" href="./"><span class="brand-mark">a<span>h</span></span><strong>afterhours<span> COVER STUDIO</span></strong></a><div class="top-note"><i></i> Your photos. Your cover story.</div><button id="downloadTop" class="primary">Export PNG <span>↗</span></button></header>
+  <main class="workspace"><aside class="controls">
+    <div class="intro"><span class="eyebrow">THE CITY IS YOURS</span><h1>Make a little<br>trouble.</h1><p>Turn your photos into a cinematic cover.</p></div>
+    <section><div class="section-heading"><h2><b>01</b> Start with a mood</h2><span>ONE CLICK</span></div><div id="presets" class="presets"></div></section>
+    <section><div class="section-heading"><h2><b>02</b> Build your panels</h2><span id="panelCount">3 PANELS</span></div><div id="layouts" class="layout-grid"></div>
+      <div class="photo-heading"><label>Your photos</label><button id="fillAll" class="text-button">Fill all with selected ↗</button></div><div id="photoSlots" class="photo-slots"></div><input id="photoUpload" type="file" accept="image/*" multiple hidden>
+      <div class="crop-tools"><div class="row"><label id="cropLabel">Panel 1 · crop &amp; position</label><span>DRAG ON COVER</span></div><div id="cropPositions" class="segmented"><button data-position="center">Center</button><button data-position="face">Face ↑</button><button data-position="left">Left</button><button data-position="right">Right</button></div><label class="slider-row">Zoom<input id="zoom" type="range" min="1" max="3" step="0.01" value="1"><output id="zoomValue">1×</output></label></div>
+    </section>
+    <section><div class="section-heading"><h2><b>03</b> Color the night</h2><span>6 FILM GRADES</span></div><div id="grades" class="grade-grid"></div><label class="slider-row">Intensity<input id="intensity" type="range" min="0" max="100" value="72"><output id="intensityValue">72%</output></label></section>
+    <section><div class="section-heading"><h2><b>04</b> Write your story</h2><span>MAKE IT LOUD</span></div><label class="field">Cover caption <textarea id="caption" rows="2" maxlength="60">SUNSET
+HEIST</textarea></label><label class="field">Subtitle <input id="subtitle" value="NO RULES. JUST THE OPEN ROAD." maxlength="90"></label>
+      <div class="two-col"><label class="field">Lettering<select id="font"><option value="Afterhours Condensed">Condensed / display</option><option value="Afterhours Grotesk">Grotesk / bold</option></select></label><label class="field">Frame<select id="frame"><option value="thin">Thin</option><option value="thick">Thick</option><option value="none">None</option></select></label></div>
+      <label class="slider-row">Outline<input id="outline" type="range" min="0" max="16" value="8"><output id="outlineValue">8</output></label><label class="slider-row">Tracking<input id="tracking" type="range" min="-3" max="12" value="1"><output id="trackingValue">1</output></label>
+      <div class="toggles"><label><input id="uppercase" type="checkbox" checked> Uppercase</label><label><input id="gradient" type="checkbox" checked> Gradient</label><label><input id="shadow" type="checkbox" checked> Shadow</label><label><input id="vignette" type="checkbox" checked> Vignette</label></div>
+    </section><p class="privacy">↳ Made on your device. Photos never leave it.</p>
+  </aside><div class="stage">
+    <div class="stage-heading"><div><span class="eyebrow">YOUR COVER STORY</span><h2 id="previewName">Sunset Heist <span>— Live preview</span></h2></div><span class="live"><i></i> LIVE</span></div>
+    <div class="preview-wrap"><canvas id="cover" width="1920" height="1080" aria-label="Live cover preview. Select a photo panel and drag to reposition." tabindex="0"></canvas></div>
+    <div class="preview-footer"><span><span class="dot"></span> <span id="dimensions">1920 × 1080</span> <span class="muted"> / Export ready</span></span><span>Click a panel to select · drag to reframe</span></div>
+    <div class="export-bar"><div><span class="eyebrow">TAKE IT TO THE STREETS</span><h3>Your next great cover.</h3></div><div class="export-actions"><div id="sizes" class="segmented"><button data-size="wide" class="active">Wide <small>16:9</small></button><button data-size="portrait">Portrait <small>4:5</small></button><button data-size="square">Square <small>1:1</small></button></div><button id="download" class="primary">Download PNG <span>↓</span></button></div></div>
+    <div class="stage-bottom"><span>ORIGINAL PHOTOS. MAIN CHARACTER ENERGY.</span><span>AFTERHOURS / VOL. 02</span></div>
+  </div></main><div id="toast" role="status"></div><script type="module" src="src/main.js"></script>
+</body></html>
